@@ -20,6 +20,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Stepper state tracking
   const [isLiveRecording, setIsLiveRecording] = useState(false);
@@ -83,12 +84,6 @@ export default function Home() {
     setHasRecordedAudio(hasAudio);
   }, []);
 
-  // Dynamic step index computation for Mentorship Journey:
-  // Step 1: Ingest (default initial state)
-  // Step 2: Live Recording (when currently recording audio)
-  // Step 3: Audio Review (when audio has finished recording and user is previewing)
-  // Step 4: Analyzing (when uploading and running Groq AI transcription)
-  // Step 5: Word Cloud Payoff (when word cloud is rendered)
   let currentStep = 1;
   if (isLiveRecording) currentStep = 2;
   else if (hasRecordedAudio && !loading && !result) currentStep = 3;
@@ -120,8 +115,10 @@ export default function Home() {
         </div>
 
         <div className="nav-right">
-          <a href="#guide" className="mentor-guide-link">Mentor Guide</a>
-          <button className="user-avatar-btn" title="User Profile">
+          <button className="mentor-guide-link" onClick={() => setShowHelpModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+            Mentor Guide
+          </button>
+          <button className="user-avatar-btn" title="User Profile" onClick={() => setShowHelpModal(true)}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
@@ -148,14 +145,18 @@ export default function Home() {
             <div className={`step-item ${currentStep === 4 ? 'active' : ''}`}>4. Analyzing</div>
             <div className={`step-item ${currentStep === 5 ? 'active' : ''}`}>5. Word Cloud Payoff</div>
           </div>
-          <a href="#help" className="step-help">
+          <button
+            className="step-help"
+            onClick={() => setShowHelpModal(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+          >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="16" x2="12" y2="12" />
               <line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
             Help & Permissions
-          </a>
+          </button>
         </div>
       </div>
 
@@ -252,6 +253,80 @@ export default function Home() {
           </div>
         </footer>
       </main>
+
+      {/* 4. HELP & PERMISSIONS MODAL */}
+      {showHelpModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.4)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+          onClick={() => setShowHelpModal(false)}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              maxWidth: '540px',
+              width: '100%',
+              padding: '28px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+              border: '1px solid #eae5dc',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', color: '#2d3b55' }}>
+                Mentor Guide & Permissions
+              </h2>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ fontSize: '13.5px', color: '#475569', lineHeight: '1.6', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ background: '#f4f0ea', padding: '14px 18px', borderRadius: '10px' }}>
+                <strong style={{ color: '#2d3b55' }}>🎙️ Microphone Access:</strong>
+                <p style={{ marginTop: '4px' }}>
+                  If your browser blocks recording, click the 🔒 lock icon next to your URL bar, select <strong>Microphone</strong>, change it to <strong>Allow</strong>, and refresh the page.
+                </p>
+              </div>
+
+              <div style={{ background: '#eaf4ef', padding: '14px 18px', borderRadius: '10px' }}>
+                <strong style={{ color: '#3d8a68' }}>🔒 Student Privacy Guarantee:</strong>
+                <p style={{ marginTop: '4px' }}>
+                  SessionCloud operates on zero data retention. Audio files are processed in-memory live via Groq AI and immediately dissolved after generating your topic reflection map.
+                </p>
+              </div>
+
+              <div style={{ background: '#f4f0ea', padding: '14px 18px', borderRadius: '10px' }}>
+                <strong style={{ color: '#2d3b55' }}>📁 File Limits:</strong>
+                <p style={{ marginTop: '4px' }}>
+                  Supports MP3, WAV, M4A, AAC, OGG, WEBM, and FLAC files up to 25 MB or 10 minutes per session.
+                </p>
+              </div>
+            </div>
+
+            <button
+              className="btn-navy-full"
+              style={{ marginTop: '24px' }}
+              onClick={() => setShowHelpModal(false)}
+            >
+              Got it, thanks!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
