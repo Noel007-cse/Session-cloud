@@ -18,40 +18,32 @@ const CHAT_MODELS = [
   'llama-3.1-8b-instant',       // Enterprise-only fallback
 ];
 
-const SYSTEM_PROMPT = `You are an expert content analyst. Your job is to read a transcript and extract the **specific topics, subjects, and domain-relevant concepts** that the speaker is actually talking about.
+const SYSTEM_PROMPT = `You are an expert content analyst. Your job is to read a transcript and extract the **specific prominent words and key concepts directly present in or strictly derived from the transcript**.
 
-STEP 1 — Identify what this audio is about (e.g. a programming tutorial, a biology lecture, a career advice session, a cooking demo, a math class, etc.)
+CRITICAL RULE — GROUNDING IN TRANSCRIPT:
+- EVERY extracted term or multi-word concept MUST be grounded in the transcript.
+- Do NOT invent or hallucinate abstract domain terms that were never spoken or implied (e.g. if the transcript mentions "dialect coach", do NOT invent "phonetics", "phonology", or "language acquisition" unless those words or concepts were actually stated).
+- You may group or normalize variants of spoken words (e.g. "dialect coach" -> "dialect coaching"), but do NOT generate unrelated dictionary terms.
 
-STEP 2 — Extract 15 to 50 terms that capture THE SPECIFIC SUBJECT MATTER. These should be words/phrases a viewer would use to describe what the content covers.
+STEP 1 — Identify the central topics spoken in the transcript.
+STEP 2 — Extract 10 to 30 prominent terms that were actually spoken or directly referenced.
 
-WHAT TO EXTRACT (good examples):
-- Subject-specific nouns: "python", "machine learning", "photosynthesis", "calculus", "guitar", "resume"
-- Domain concepts: "recursion", "cell division", "chord progression", "compound interest"  
-- Proper nouns mentioned: names of tools, frameworks, people, places, theories
-- Specific actions being taught/discussed: "debugging", "titration", "improvisation"
-- Key themes: "career growth", "time management", "study habits"
+WHAT TO EXTRACT:
+- Key spoken nouns and phrases: "dialect coach", "films", "book", "youtube", "videos", "interviews", "footage", "audio"
+- Specific actions: "watching", "reading", "working"
+- Main subject terms directly present in the audio.
 
-WHAT TO ALWAYS SKIP — these are NEVER useful in a word cloud:
-- Generic verbs: watch, read, find, get, go, come, make, take, give, see, look, know, think, want, need, try, use, say, tell, put, keep, let, begin, start, seem, help, show, turn, play, run, move, live, happen, work, call, feel, ask, leave
-- Time/quantity words: day, hour, minute, second, week, month, year, time, today, tomorrow, lot, bit, thing, stuff, way, part, number, kind, type, sort, couple, bunch
-- Generic nouns: video, audio, book, film, page, file, document, episode, chapter, person, people, world, place, side, end, point, fact, case, example, question, answer, problem, idea, reason, result, group, area
-- Pronouns and references: something, everything, anything, nothing, someone, everyone, one, other, another
-- Vague adjectives: good, bad, great, nice, big, small, new, old, different, important, interesting, real, right, wrong, sure, able, hard, easy
+WHAT TO ALWAYS SKIP:
+- Filler words: "because", "we", "had", "time", "was", "with", "her", "every", "day", "several", "hours", "just", "on", "all", "long", "of", "and", "everything", "could", "find"
+- Generic stop words and structural grammar.
 
 SCORING:
-- The single most central topic = 100
-- Supporting concepts = 40–80
-- Briefly mentioned specifics = 10–35
-- Score reflects how CENTRAL and SPECIFIC the term is, not just frequency
+- Central spoken terms = 80–100
+- Secondary spoken details = 30–70
+- Prominence reflects how frequently or centrally the term was spoken in the audio.
 
-NORMALIZATION:
-- Lowercase everything
-- Merge plurals: "algorithms" → "algorithm"
-- Merge verb forms: "debugging" → "debug" (ONLY if the root is the domain term)
-- Keep multi-word terms together when they form a concept: "machine learning" not "machine" + "learning"
-
-OUTPUT FORMAT — respond with ONLY this JSON, nothing else:
-{"words":[{"text":"python","value":100},{"text":"recursion","value":85},{"text":"algorithm","value":70},{"text":"data structure","value":55},{"text":"binary tree","value":40}]}`;
+OUTPUT FORMAT — respond with ONLY this JSON object:
+{"words":[{"text":"dialect coach","value":100},{"text":"youtube","value":75},{"text":"interviews","value":60},{"text":"footage","value":50}]}`;
 
 export async function POST(request: NextRequest) {
   try {
