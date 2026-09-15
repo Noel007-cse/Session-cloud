@@ -84,11 +84,9 @@ export async function POST(request: NextRequest) {
     if (!transcript || transcript.length === 0) {
       return NextResponse.json(
         {
-          error: 'The audio appears to be silent or contains no recognisable speech. Please try a different recording.',
-          transcript: '',
-          words: [],
+          error: 'The audio appears to be silent or contains no recognisable speech. Please check your microphone or try a different recording.',
         },
-        { status: 200 }
+        { status: 400 }
       );
     }
 
