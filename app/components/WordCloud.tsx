@@ -25,25 +25,27 @@ interface WordCloudProps {
   onReset: () => void;
 }
 
-const PALETTES = [
-  '#2d3b55', // Primary Navy
-  '#3d8a68', // Sage Green
-  '#b8523a', // Terracotta
-  '#5c4d7d', // Calm Purple
-  '#2563eb', // Blue
-  '#059669', // Emerald
-];
+const COLOR_SCHEMES: Record<string, string[]> = {
+  sage: ['#2d3b55', '#3d8a68', '#b8523a', '#5c4d7d', '#2563eb', '#059669'],
+  ocean: ['#0284c7', '#0d9488', '#2563eb', '#0369a1', '#1d4ed8', '#0f766e'],
+  sunset: ['#d97706', '#dc2626', '#b91c1c', '#c05621', '#9a3412', '#ea580c'],
+  monochrome: ['#1e293b', '#334155', '#475569', '#64748b', '#0f172a', '#475569'],
+};
 
 export default function WordCloud({ words, transcript, onReset }: WordCloudProps) {
   const [layoutWords, setLayoutWords] = useState<LayoutWord[]>([]);
   const [removedWords, setRemovedWords] = useState<Set<string>>(new Set());
   const [showTranscript, setShowTranscript] = useState(false);
+  const [selectedScheme, setSelectedScheme] = useState<string>('sage');
+  const [cloudShape, setCloudShape] = useState<'rectangular' | 'arch'>('rectangular');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const activeWords = useMemo(
     () => words.filter((w) => !removedWords.has(w.text)),
     [words, removedWords]
   );
+
+  const activeColors = COLOR_SCHEMES[selectedScheme] || COLOR_SCHEMES.sage;
 
   useEffect(() => {
     if (activeWords.length === 0) return;
@@ -58,7 +60,12 @@ export default function WordCloud({ words, transcript, onReset }: WordCloudProps
       .size([width, height])
       .words(activeWords.map((w) => ({ ...w })))
       .padding(8)
-      .rotate(() => (Math.random() > 0.8 ? 90 * (Math.random() > 0.5 ? 1 : -1) : 0))
+      .rotate(() => {
+        if (cloudShape === 'arch') {
+          return Math.random() > 0.5 ? 0 : (Math.random() > 0.5 ? 90 : -90);
+        }
+        return Math.random() > 0.8 ? 90 * (Math.random() > 0.5 ? 1 : -1) : 0;
+      })
       .fontSize((d) => fontScale(d.value!))
       .font('Outfit, sans-serif')
       .fontWeight('700')
@@ -78,7 +85,7 @@ export default function WordCloud({ words, transcript, onReset }: WordCloudProps
       });
 
     layout.start();
-  }, [activeWords]);
+  }, [activeWords, cloudShape]);
 
   const removeWord = useCallback((word: string) => {
     setRemovedWords((prev) => new Set(prev).add(word));
@@ -118,6 +125,15 @@ export default function WordCloud({ words, transcript, onReset }: WordCloudProps
 
   const copyTranscript = useCallback(() => {
     navigator.clipboard.writeText(transcript);
+  }, [transcript]);
+
+  const downloadTranscript = useCallback(() => {
+    const blob = new Blob([transcript], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.download = 'sessioncloud-transcript.txt';
+    a.href = URL.createObjectURL(blob);
+    a.click();
+    URL.revokeObjectURL(a.href);
   }, [transcript]);
 
   const width = containerRef.current?.clientWidth || 800;
@@ -160,6 +176,66 @@ export default function WordCloud({ words, transcript, onReset }: WordCloudProps
         </div>
       </div>
 
+      {/* Bonus Controls Bar: Colour Scheme & Shape Pickers */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', padding: '12px 16px', background: '#f4f0ea', borderRadius: '12px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '12px', fontWeight: '700', color: '#2d3b55' }}>Palette:</span>
+          {Object.keys(COLOR_SCHEMES).map((scheme) => (
+            <button
+              key={scheme}
+              onClick={() => setSelectedScheme(scheme)}
+              style={{
+                padding: '4px 12px',
+                borderRadius: '9999px',
+                fontSize: '11.5px',
+                fontWeight: '600',
+                border: selectedScheme === scheme ? '2px solid #2d3b55' : '1px solid #cbd5e1',
+                background: selectedScheme === scheme ? '#2d3b55' : 'white',
+                color: selectedScheme === scheme ? 'white' : '#475569',
+                cursor: 'pointer',
+                textTransform: 'capitalize',
+              }}
+            >
+              {scheme}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '12px', fontWeight: '700', color: '#2d3b55' }}>Layout Shape:</span>
+          <button
+            onClick={() => setCloudShape('rectangular')}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '9999px',
+              fontSize: '11.5px',
+              fontWeight: '600',
+              border: cloudShape === 'rectangular' ? '2px solid #2d3b55' : '1px solid #cbd5e1',
+              background: cloudShape === 'rectangular' ? '#2d3b55' : 'white',
+              color: cloudShape === 'rectangular' ? 'white' : '#475569',
+              cursor: 'pointer',
+            }}
+          >
+            Horizontal
+          </button>
+          <button
+            onClick={() => setCloudShape('arch')}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '9999px',
+              fontSize: '11.5px',
+              fontWeight: '600',
+              border: cloudShape === 'arch' ? '2px solid #2d3b55' : '1px solid #cbd5e1',
+              background: cloudShape === 'arch' ? '#2d3b55' : 'white',
+              color: cloudShape === 'arch' ? 'white' : '#475569',
+              cursor: 'pointer',
+            }}
+          >
+            Mixed Radial
+          </button>
+        </div>
+      </div>
+
       <div className="cloud-display-wrapper" ref={containerRef}>
         <svg width={width} height={height}>
           <g transform={`translate(${width / 2},${height / 2})`}>
@@ -172,7 +248,7 @@ export default function WordCloud({ words, transcript, onReset }: WordCloudProps
                   fontSize: `${w.size}px`,
                   fontFamily: 'Outfit, sans-serif',
                   fontWeight: 700,
-                  fill: PALETTES[i % PALETTES.length],
+                  fill: activeColors[i % activeColors.length],
                   cursor: 'pointer',
                   transition: 'opacity 0.2s',
                 }}
@@ -190,9 +266,14 @@ export default function WordCloud({ words, transcript, onReset }: WordCloudProps
         <div className="transcript-drawer" style={{ marginTop: '20px' }}>
           <div className="transcript-drawer-header">
             <h3 className="transcript-drawer-title">Full Conversation Transcript</h3>
-            <button className="btn-secondary" onClick={copyTranscript}>
-              Copy Transcript
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn-secondary" onClick={copyTranscript}>
+                Copy Text
+              </button>
+              <button className="btn-secondary" onClick={downloadTranscript}>
+                Download .TXT
+              </button>
+            </div>
           </div>
           <p className="transcript-body-text">{transcript}</p>
         </div>

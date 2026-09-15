@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import AudioRecorder from './components/AudioRecorder';
 import AudioUploader from './components/AudioUploader';
 import WordCloud from './components/WordCloud';
@@ -12,6 +12,8 @@ interface WordData {
 }
 
 interface AnalysisResult {
+  id?: string;
+  timestamp?: string;
   words: WordData[];
   transcript: string;
 }
@@ -21,6 +23,37 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
+
+  // Past analyses history state (Bonus item)
+  const [history, setHistory] = useState<AnalysisResult[]>([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  // Load past analyses from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('sessioncloud_history');
+      if (saved) {
+        setHistory(JSON.parse(saved));
+      }
+    } catch {
+      // localStorage disabled or empty
+    }
+  }, []);
+
+  const saveToHistory = (newResult: AnalysisResult) => {
+    try {
+      const item: AnalysisResult = {
+        ...newResult,
+        id: Date.now().toString(),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      const updated = [item, ...history].slice(0, 10); // keep last 10
+      setHistory(updated);
+      localStorage.setItem('sessioncloud_history', JSON.stringify(updated));
+    } catch {
+      // Storage error fallback
+    }
+  };
 
   // Stepper state tracking
   const [isLiveRecording, setIsLiveRecording] = useState(false);
@@ -41,17 +74,20 @@ export default function Home() {
         throw new Error(data.error || 'Failed to process audio session');
       }
 
-      setResult({
+      const resObj: AnalysisResult = {
         words: data.words,
         transcript: data.transcript,
-      });
+      };
+
+      setResult(resObj);
+      saveToHistory(resObj);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [history]);
 
   const handleAudioReady = useCallback(
     (blob: Blob) => {
@@ -115,6 +151,15 @@ export default function Home() {
         </div>
 
         <div className="nav-right">
+          {history.length > 0 && (
+            <button
+              className="btn-secondary"
+              onClick={() => setShowHistoryModal(true)}
+              style={{ fontSize: '12.5px', padding: '6px 14px' }}
+            >
+              🕒 Saved Sessions ({history.length})
+            </button>
+          )}
           <button className="mentor-guide-link" onClick={() => setShowHelpModal(true)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             Mentor Guide
           </button>
@@ -254,7 +299,7 @@ export default function Home() {
         </footer>
       </main>
 
-      {/* 4. HELP & PERMISSIONS MODAL */}
+      {/* HELP & PERMISSIONS MODAL */}
       {showHelpModal && (
         <div
           style={{
@@ -323,6 +368,96 @@ export default function Home() {
               onClick={() => setShowHelpModal(false)}
             >
               Got it, thanks!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* PAST ANALYSES HISTORY MODAL (Bonus feature) */}
+      {showHistoryModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.4)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+          onClick={() => setShowHistoryModal(false)}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '16px',
+              maxWidth: '600px',
+              width: '100%',
+              padding: '28px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+              border: '1px solid #eae5dc',
+              maxHeight: '80vh',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', color: '#2d3b55' }}>
+                Saved Past Analyses ({history.length})
+              </h2>
+              <button
+                onClick={() => setShowHistoryModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#64748b' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, paddingRight: '4px' }}>
+              {history.map((item, idx) => (
+                <div
+                  key={item.id || idx}
+                  style={{
+                    background: '#faf8f5',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid #eae5dc',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#2d3b55' }}>
+                      Session Analysis ({item.words.length} topics extracted)
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: '#64748b', marginTop: '2px' }}>
+                      {item.timestamp || 'Recent Session'} • {item.transcript.slice(0, 60)}…
+                    </div>
+                  </div>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => {
+                      setResult(item);
+                      setShowHistoryModal(false);
+                    }}
+                    style={{ fontSize: '12px', padding: '6px 14px' }}
+                  >
+                    View Map
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="btn-navy-full"
+              style={{ marginTop: '20px' }}
+              onClick={() => setShowHistoryModal(false)}
+            >
+              Close
             </button>
           </div>
         </div>
