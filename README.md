@@ -20,7 +20,7 @@ All four core requirements work end-to-end:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Session-cloud.git
+git clone https://github.com/Noel007-cse/Session-cloud.git
 cd Session-cloud
 
 # 2. Install dependencies
