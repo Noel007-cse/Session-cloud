@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 import { BRIEF_REF_5190_MAX_BYTES } from '@/app/lib/constants';
 
+export const maxDuration = 60; // Set max execution timeout to 60 seconds for Vercel
+export const dynamic = 'force-dynamic';
+
 function getGroqClient() {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
