@@ -68,7 +68,17 @@ export default function Home() {
         body,
       });
 
-      const data = await res.json();
+      let data;
+      const rawText = await res.text();
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        throw new Error(
+          res.status === 413
+            ? 'File is too large for the server limit (Max 25 MB).'
+            : 'Server error occurred during analysis. Please check file size and try again.'
+        );
+      }
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to process audio session');
