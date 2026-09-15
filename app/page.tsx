@@ -1,68 +1,256 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useCallback } from 'react';
+import AudioRecorder from './components/AudioRecorder';
+import AudioUploader from './components/AudioUploader';
+import WordCloud from './components/WordCloud';
+import LoadingState from './components/LoadingState';
+
+interface WordData {
+  text: string;
+  value: number;
+}
+
+interface AnalysisResult {
+  words: WordData[];
+  transcript: string;
+}
 
 export default function Home() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+
+  // Stepper state tracking
+  const [isLiveRecording, setIsLiveRecording] = useState(false);
+  const [hasRecordedAudio, setHasRecordedAudio] = useState(false);
+
+  const processAudio = useCallback(async (body: FormData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        body,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to process audio session');
+      }
+
+      setResult({
+        words: data.words,
+        transcript: data.transcript,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleAudioReady = useCallback(
+    (blob: Blob) => {
+      const formData = new FormData();
+      formData.append('file', blob, 'session_recording.webm');
+      processAudio(formData);
+    },
+    [processAudio]
+  );
+
+  const handleFileReady = useCallback(
+    (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      processAudio(formData);
+    },
+    [processAudio]
+  );
+
+  const handleReset = () => {
+    setResult(null);
+    setError(null);
+    setLoading(false);
+    setIsLiveRecording(false);
+    setHasRecordedAudio(false);
+  };
+
+  const handleRecordingStateChange = useCallback((recording: boolean, hasAudio: boolean) => {
+    setIsLiveRecording(recording);
+    setHasRecordedAudio(hasAudio);
+  }, []);
+
+  // Dynamic step index computation for Mentorship Journey:
+  // Step 1: Ingest (default initial state)
+  // Step 2: Live Recording (when currently recording audio)
+  // Step 3: Audio Review (when audio has finished recording and user is previewing)
+  // Step 4: Analyzing (when uploading and running Groq AI transcription)
+  // Step 5: Word Cloud Payoff (when word cloud is rendered)
+  let currentStep = 1;
+  if (isLiveRecording) currentStep = 2;
+  else if (hasRecordedAudio && !loading && !result) currentStep = 3;
+  else if (loading) currentStep = 4;
+  else if (result) currentStep = 5;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="app-container">
+      {/* 1. TOP NAVIGATION BAR */}
+      <header className="top-nav">
+        <div className="brand-section">
+          <div className="brand-logo-wrapper">
+            <div className="brand-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+              </svg>
+            </div>
+            <div className="brand-title-group">
+              <span className="brand-name">SessionCloud</span>
+              <span className="brand-tagline">Topic reflections for mentors</span>
+            </div>
+          </div>
+          <div className="privacy-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            Private & Ephemeral · Student Safe
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
+
+        <div className="nav-right">
+          <a href="#guide" className="mentor-guide-link">Mentor Guide</a>
+          <button className="user-avatar-btn" title="User Profile">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      {/* 2. MENTORSHIP JOURNEY STEPPER BAR */}
+      <div className="stepper-bar-container">
+        <div className="stepper-bar">
+          <div className="stepper-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            MENTORSHIP JOURNEY:
+          </div>
+          <div className="stepper-items">
+            <div className={`step-item ${currentStep === 1 ? 'active' : ''}`}>1. Ingest</div>
+            <div className={`step-item ${currentStep === 2 ? 'active' : ''}`}>2. Live Recording</div>
+            <div className={`step-item ${currentStep === 3 ? 'active' : ''}`}>3. Audio Review</div>
+            <div className={`step-item ${currentStep === 4 ? 'active' : ''}`}>4. Analyzing</div>
+            <div className={`step-item ${currentStep === 5 ? 'active' : ''}`}>5. Word Cloud Payoff</div>
+          </div>
+          <a href="#help" className="step-help">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            Help & Permissions
           </a>
         </div>
+      </div>
+
+      {/* 3. MAIN CONTENT CONTAINER */}
+      <main className="main-wrapper">
+        {!loading && !result && (
+          <>
+            {/* HERO TITLE SECTION */}
+            <div className="hero-header">
+              <div className="hero-pill">
+                <span className="hero-pill-dot" />
+                Safe • Zero Storage • Purely Reflective
+              </div>
+
+              <h1 className="hero-title">
+                What did you and your student talk about?
+              </h1>
+
+              <p className="hero-description">
+                Record your conversation or drop in an audio file. We&apos;ll gently identify the central topics and build a calm, visual reflection map for your notes.
+              </p>
+            </div>
+
+            {/* TWO CARDS GRID: RECORD VS UPLOAD */}
+            <div className="cards-grid">
+              <AudioRecorder
+                onAudioReady={handleAudioReady}
+                onRecordingStateChange={handleRecordingStateChange}
+                disabled={loading}
+              />
+              <AudioUploader onFileReady={handleFileReady} disabled={loading} />
+            </div>
+
+            {/* CONFIDENTIALITY BANNER */}
+            <div className="confidentiality-card">
+              <div className="lock-icon-wrapper">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+              <div>
+                <div className="confidentiality-title">Student Confidentiality by Default</div>
+                <div className="confidentiality-desc">
+                  Nothing is stored, tagged with student IDs, or shared with AI training pools. Audio dissolves the moment your word cloud is ready.
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ERROR STATE */}
+        {error && !loading && (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <div style={{ background: '#fde8e8', color: '#c53030', padding: '16px 24px', borderRadius: '12px', display: 'inline-block', marginBottom: '20px' }}>
+              <strong>Analysis Failed:</strong> {error}
+            </div>
+            <br />
+            <button className="btn-navy-full" style={{ width: 'auto', display: 'inline-flex' }} onClick={handleReset}>
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {/* LOADING STATE */}
+        {loading && <LoadingState />}
+
+        {/* RESULTS WORD CLOUD */}
+        {result && !loading && (
+          <WordCloud
+            words={result.words}
+            transcript={result.transcript}
+            onReset={handleReset}
+          />
+        )}
+
+        {/* FOOTER GUARANTEE */}
+        <footer className="footer-guarantee">
+          <div className="guarantee-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            Ephemeral Analysis Guarantee
+          </div>
+          <div className="guarantee-headline">
+            Audio is analyzed on-the-fly and never stored. Safe for student conversations.
+          </div>
+          <div className="guarantee-features">
+            <span>No Accounts Required</span>
+            <span>•</span>
+            <span>Zero Data Retention</span>
+            <span>•</span>
+            <span>FERPA & COPPA Respectful</span>
+          </div>
+        </footer>
       </main>
     </div>
   );
